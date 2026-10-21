@@ -1481,5 +1481,218 @@ iframe[src*="embed.windy.com"]{
 })();
 </script>
 
+
+<!-- URTV_DAILY_RAIN_3CITY_V1 -->
+<style id="urtv-daily-rain-style">
+#urtvDailyRainOverlay{
+  position:absolute;
+  top:110px;
+  left:34px;
+  width:520px;
+  min-height:170px;
+  max-height:185px;
+  z-index:50;
+  border-radius:22px;
+  background:rgba(14,22,34,.40);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 10px 30px rgba(0,0,0,.28);
+  color:#fff;
+  overflow:hidden;
+  pointer-events:none;
+  direction:rtl;
+  font-family: inherit;
+}
+#urtvDailyRainOverlay .hdr{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 16px 8px 16px;
+  font-weight:700;
+  font-size:22px;
+}
+#urtvDailyRainOverlay .hdr small{
+  font-size:13px;
+  opacity:.72;
+  font-weight:500;
+}
+#urtvDailyRainOverlay .sub{
+  margin:-2px 16px 6px 16px;
+  font-size:12px;
+  opacity:.72;
+}
+#urtvDailyRainOverlay .tbl{
+  padding:0 14px 12px 14px;
+}
+#urtvDailyRainOverlay table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  font-size:15px;
+}
+#urtvDailyRainOverlay th,
+#urtvDailyRainOverlay td{
+  padding:7px 6px;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#urtvDailyRainOverlay th:first-child,
+#urtvDailyRainOverlay td:first-child{
+  text-align:right;
+  width:96px;
+}
+#urtvDailyRainOverlay thead th{
+  font-size:13px;
+  opacity:.8;
+  font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+#urtvDailyRainOverlay tbody tr + tr td{
+  border-top:1px solid rgba(255,255,255,.08);
+}
+#urtvDailyRainOverlay .chip{
+  display:inline-block;
+  min-width:68px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  font-size:13px;
+}
+#urtvDailyRainOverlay .wet{ background:rgba(0,140,255,.20); }
+#urtvDailyRainOverlay .warn{ background:rgba(30,170,90,.22); }
+#urtvDailyRainOverlay .dry{ background:rgba(255,255,255,.06); }
+#urtvDailyRainOverlay .loading,
+#urtvDailyRainOverlay .error{
+  padding:20px 16px 18px 16px;
+  font-size:16px;
+  opacity:.9;
+}
+</style>
+<script id="urtv-daily-rain-script">
+(function(){
+  function hideOldForecastCard(){
+    try {
+      const iframes = Array.from(document.querySelectorAll('iframe[src*="windy"], iframe[src*="embed2.html"]'));
+      iframes.forEach((iframe)=>{
+        let n = iframe;
+        for (let i = 0; i < 5 && n; i++, n = n.parentElement) {
+          if (!n) break;
+          const rect = n.getBoundingClientRect ? n.getBoundingClientRect() : {width:0,height:0};
+          if (rect.width > 250 && rect.height > 120) {
+            n.style.display = 'none';
+            break;
+          }
+        }
+      });
+      const windyLabels = Array.from(document.querySelectorAll('body *')).filter(el => {
+        const t = (el.textContent || '').trim();
+        return t && (t.includes('Windy.com') || t.includes('ECMWF') || t.includes('توقعات الأمطار'));
+      });
+      windyLabels.forEach((el)=>{
+        let n = el;
+        for (let i = 0; i < 4 && n; i++, n = n.parentElement) {
+          const rect = n.getBoundingClientRect ? n.getBoundingClientRect() : {width:0,height:0};
+          if (rect.width > 250 && rect.height > 120) {
+            n.style.display = 'none';
+            break;
+          }
+        }
+      });
+    } catch(e) {}
+  }
+
+  function ensureOverlay(){
+    let root = document.getElementById('urtvDailyRainOverlay');
+    if (root) return root;
+    root = document.createElement('div');
+    root.id = 'urtvDailyRainOverlay';
+    root.innerHTML = '<div class="hdr"><span>توقعات الأمطار</span><small>القصيم · حائل · الرياض</small></div>' +
+                     '<div class="sub">ملخّص يومي لثلاثة أيام قادمة — بدون تفاصيل ساعاتية</div>' +
+                     '<div class="loading">جاري تحميل التوقعات…</div>';
+    document.body.appendChild(root);
+    return root;
+  }
+
+  function dayLabel(idx){
+    return idx === 0 ? 'اليوم' : idx === 1 ? 'غدًا' : idx === 2 ? 'بعد غد' : 'اليوم '+(idx+1);
+  }
+
+  function chipClass(mm, prob){
+    if ((mm || 0) >= 5 || (prob || 0) >= 60) return 'chip wet';
+    if ((mm || 0) >= 1 || (prob || 0) >= 35) return 'chip warn';
+    return 'chip dry';
+  }
+
+  function fmt(mm, prob){
+    const m = Number(mm || 0).toFixed(0);
+    const p = Number(prob || 0).toFixed(0);
+    return `${m} مم · ${p}%`;
+  }
+
+  async function loadCity(c){
+    const url = 'https://api.open-meteo.com/v1/forecast?' +
+      new URLSearchParams({
+        latitude: String(c.lat),
+        longitude: String(c.lon),
+        daily: 'precipitation_sum,precipitation_probability_max',
+        forecast_days: '4',
+        timezone: 'Asia/Riyadh'
+      }).toString();
+    const r = await fetch(url, {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const j = await r.json();
+    return {
+      name: c.name,
+      days: [0,1,2].map(i => ({
+        mm: j.daily?.precipitation_sum?.[i] ?? 0,
+        prob: j.daily?.precipitation_probability_max?.[i] ?? 0,
+      }))
+    };
+  }
+
+  async function render(){
+    hideOldForecastCard();
+    const root = ensureOverlay();
+    const cities = [
+      {name:'القصيم', lat:26.0718, lon:43.6250},
+      {name:'حائل', lat:27.5114, lon:41.7208},
+      {name:'الرياض', lat:24.7136, lon:46.6753},
+    ];
+    try {
+      const data = await Promise.all(cities.map(loadCity));
+      let html = '<div class="hdr"><span>توقعات الأمطار</span><small>القصيم · حائل · الرياض</small></div>' +
+                 '<div class="sub">ملخّص يومي لثلاثة أيام قادمة — تحديث خفيف وبدون خريطة</div>' +
+                 '<div class="tbl"><table><thead><tr><th>المنطقة</th>' +
+                 [0,1,2].map(i=>`<th>${dayLabel(i)}</th>`).join('') +
+                 '</tr></thead><tbody>';
+      data.forEach(row => {
+        html += `<tr><td>${row.name}</td>` + row.days.map(d => `<td><span class="${chipClass(d.mm,d.prob)}">${fmt(d.mm,d.prob)}</span></td>`).join('') + '</tr>';
+      });
+      html += '</tbody></table></div>';
+      root.innerHTML = html;
+    } catch(err) {
+      root.innerHTML = '<div class="hdr"><span>توقعات الأمطار</span><small>القصيم · حائل · الرياض</small></div>' +
+                       '<div class="error">تعذّر تحميل التوقعات الآن. إن تكررت المشكلة، ارجع لشاشة التوقف الأصلية.</div>';
+    }
+  }
+
+  function boot(){
+    render();
+    setInterval(render, 30 * 60 * 1000);
+    setTimeout(hideOldForecastCard, 1500);
+    setTimeout(hideOldForecastCard, 5000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+
 </body>
 </html>

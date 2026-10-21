@@ -1396,5 +1396,90 @@ boot();
 })();
 </script>
 
+
+<!-- URTV_ECMWF_MAP_ONLY_OVERRIDE_V1 -->
+<style id="urtv-ecmwf-map-only-style">
+iframe[src*="embed.windy.com"]{
+  border:0 !important;
+}
+</style>
+<script id="urtv-ecmwf-map-only-script">
+(function(){
+  function applyMapOnly(){
+    const iframes = Array.from(document.querySelectorAll('iframe[src*="embed.windy.com"]'));
+    if (!iframes.length) return false;
+    iframes.forEach((iframe)=>{
+      // Try to find the visual card container
+      let wrap = iframe.parentElement;
+      if (!wrap) return;
+      let card = wrap.parentElement || wrap;
+
+      // Hide sibling text/labels inside the same card so only the map stays
+      try {
+        Array.from(card.children).forEach((ch)=>{
+          if (ch !== wrap) ch.style.display = 'none';
+        });
+      } catch(e) {}
+
+      // Compact card
+      card.style.width = '430px';
+      card.style.height = '235px';
+      card.style.overflow = 'hidden';
+      card.style.borderRadius = '18px';
+      card.style.background = 'rgba(8,14,25,0.72)';
+      card.style.border = '1px solid rgba(255,255,255,0.14)';
+      card.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)';
+      card.style.padding = '0';
+
+      // Crop inner widget to the clean map region
+      wrap.style.position = 'relative';
+      wrap.style.width = '100%';
+      wrap.style.height = '100%';
+      wrap.style.overflow = 'hidden';
+      wrap.style.margin = '0';
+      wrap.style.padding = '0';
+      wrap.style.background = '#0b1422';
+
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-126px';
+      iframe.style.top = '-76px';
+      iframe.style.width = '760px';
+      iframe.style.height = '420px';
+      iframe.style.transform = 'scale(1)';
+      iframe.style.transformOrigin = 'top left';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.opacity = '1';
+
+      // If there are still textual badges within the wrap, hide them
+      try {
+        wrap.querySelectorAll('*').forEach((el)=>{
+          if (el !== iframe && !el.contains(iframe)) {
+            const tag = (el.tagName || '').toLowerCase();
+            if (tag !== 'iframe') el.style.display = 'none';
+          }
+        });
+      } catch(e) {}
+    });
+    return true;
+  }
+
+  function runMany(){
+    let tries = 0;
+    const timer = setInterval(()=>{
+      tries += 1;
+      const ok = applyMapOnly();
+      if (ok && tries > 3) clearInterval(timer);
+      if (tries > 20) clearInterval(timer);
+    }, 1500);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runMany);
+  } else {
+    runMany();
+  }
+})();
+</script>
+
 </body>
 </html>

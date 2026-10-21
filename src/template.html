@@ -248,6 +248,37 @@
     .mrow{align-items:flex-start}
   }
 </style>
+
+<style id="urtv-ecmwf-style">
+/* URTV_ECMWF_FORECAST_FAMILY_V2 : lightweight forecast, not observed radar */
+.markets .mk {display:none!important}
+.markets .ecmwf-compact{margin-top:1.2vh;width:clamp(300px,25.5vw,475px);height:clamp(190px,23vh,278px);direction:rtl;
+ border:1px solid rgba(220,184,111,.40);border-radius:14px;overflow:hidden;background:#061626ef;color:#f1e7d5;
+ box-shadow:0 8px 20px #0006;text-align:right;font-family:inherit;position:relative}
+.ecmwf-compact *{box-sizing:border-box}
+.ecmwf-head{height:41px;padding:7px 11px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ecmwf-head b{font-size:clamp(13px,1.05vw,18px)}
+.ecmwf-tag{color:#e5c581;background:#2c3128;border:1px solid #65583d;border-radius:6px;font-size:11px;padding:3px 6px;white-space:nowrap}
+.ecmwf-frame-wrap{height:calc(100% - 71px);position:relative;background:#10242c}
+.ecmwf-frame-wrap iframe{display:block;width:100%;height:100%;border:0;background:#10242c}
+.ecmwf-foot{height:30px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;
+ font-size:11px;color:#bad2d3;white-space:nowrap;gap:8px}
+.ecmwf-foot small{color:#f0cf8e;font-size:10px}
+html.widget .ecmwf-compact{display:none!important}
+@media(max-width:1200px){.markets .ecmwf-compact{width:300px;height:192px}}
+</style>
+
+<style id="urtv-family-adhkar-style">
+/* Keep match-row for UrTV JavaScript but do not display results. */
+.p-match .label,.p-match #match-row{display:none!important}
+.p-match .family-adhkar{display:flex;flex-direction:column;text-align:right;gap:5px;align-items:flex-start;
+ background:rgba(4,18,14,.55);border-inline-start:1px solid rgba(220,184,111,.35);padding:5px 18px;min-height:90px}
+.p-match .family-adhkar strong{color:#e5c581;font-size:clamp(15px,1.15vw,23px)}
+.p-match .family-adhkar span{color:#fcf3dc;font-size:clamp(15px,1.14vw,22px);line-height:1.55}
+.p-match .family-adhkar small{color:#e1cda9;font-size:clamp(10px,.72vw,14px)}
+html.widget .family-adhkar{display:none!important}
+</style>
+
 </head>
 <body>
 <div class="photo"></div>
@@ -276,6 +307,15 @@
         <span class="m"><span>S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></span>
         <span class="m"><span>بيتكوين</span><span id="btc-chg" class="delta" hidden></span></span>
       </div>
+
+<!-- URTV_ECMWF_FORECAST_FAMILY_V2 -->
+<div class="ecmwf-compact" id="urtv-ecmwf-forecast" aria-label="توقعات الأمطار من النموذج الأوروبي">
+  <div class="ecmwf-head"><b>☁ توقعات الأمطار المقبلة</b><span class="ecmwf-tag">ECMWF · نموذج متوقع</span></div>
+  <div class="ecmwf-frame-wrap"><iframe id="urtv-ecmwf-map" title="توقعات أمطار القصيم وحائل والرياض" referrerpolicy="strict-origin-when-cross-origin" loading="eager" allowfullscreen
+   src="https://embed.windy.com/embed2.html?lat=26.30&amp;lon=43.85&amp;zoom=5&amp;level=surface&amp;overlay=rainAccu&amp;product=ecmwf&amp;menu=&amp;message=&amp;marker=&amp;calendar=&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C"></iframe></div>
+  <div class="ecmwf-foot"><span>الخبراء · حائل · الرياض</span><small id="urtv-ecmwf-status">خريطة توقعات — Windy.com</small></div>
+</div>
+
     </div>
   </header>
 
@@ -311,6 +351,14 @@
       <div class="mrow" id="match-row">
         <div class="none-week">لا شيء هذا الأسبوع</div>
       </div>
+
+<!-- family devotion replacing only the display of sport results; preserves original DOM hooks -->
+<div class="family-adhkar" id="family-adhkar" dir="rtl">
+  <strong id="family-adhkar-head">ذكر اليوم</strong>
+  <span id="family-adhkar-text">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</span>
+  <small id="family-adhkar-src">سورة الرعد · الآية ٢٨</small>
+</div>
+
     </div>
   </footer>
 
@@ -356,6 +404,7 @@ const CONFIG = {
   widget: _Q.get('widget') === '1',
 };
 
+CONFIG.teamIds.length = 0; // Family screen: no sports requests
 const GREG = 'ar-SA-u-ca-gregory-nu-arab';
 const AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
 const ar = s => String(s).replace(/[0-9]/g, d => AR[+d]);
@@ -825,7 +874,8 @@ async function loadMatches(){
   if(CONFIG.panel === 'matches') renderPanel(false);
 }
 
-const TICKERS = [
+const TICKERS = [];
+const DISABLED_ORIGINAL_TICKERS = [
   {sym:'^TASI.SR', chg:'tasi-chg'},
   {sym:'^GSPC',    chg:'spx-chg'},
   {cg:'bitcoin',   chg:'btc-chg'},
@@ -1307,5 +1357,44 @@ document.addEventListener('keydown', e=>{
 
 boot();
 </script>
+
+<script id="urtv-ecmwf-refresh">
+// URTV_ECMWF_FORECAST_FAMILY_V2: refresh forecast every 30 minutes, NOT historical radar.
+(function(){
+ 'use strict';
+ var frame=document.getElementById('urtv-ecmwf-map');
+ var status=document.getElementById('urtv-ecmwf-status');
+ if(!frame) return;
+ // Avoid video-like CPU churn: reload forecast model only twice per hour.
+ var original=frame.getAttribute('src');
+ function refresh(){
+   try { frame.setAttribute('src',original); status.textContent='تحديث توقعات ECMWF · Windy.com'; }
+   catch(e){ status.textContent='التوقعات غير متاحة'; }
+ }
+ setInterval(refresh,30*60*1000);
+})();
+</script>
+
+
+<script id="urtv-family-adhkar-refresh">
+(function(){'use strict';
+ var name=document.getElementById('family-adhkar-head');
+ var txt=document.getElementById('family-adhkar-text');
+ var src=document.getElementById('family-adhkar-src');
+ if(!name||!txt||!src)return;
+ function update(){
+  var h=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Riyadh',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
+  var day=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Riyadh',weekday:'short'}).format(new Date());
+  var a;
+  if(day==='Fri')a=['ذكر الجمعة','اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ','الصلاة على النبي ﷺ — تذكير بفضل الإكثار منها يوم الجمعة'];
+  else if(h>=4&&h<12)a=['ذكر الصباح','سُبْحَانَ اللَّهِ وَبِحَمْدِهِ','صحيح البخاري 6405 — من أذكار اليوم'];
+  else if(h>=16)a=['ذكر المساء','أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ','صحيح مسلم 2723'];
+  else a=['آية للتدبر','أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ','سورة الرعد · الآية ٢٨'];
+  name.textContent=a[0];txt.textContent=a[1];src.textContent=a[2];
+ }
+ try{update();setInterval(update,60000)}catch(e){txt.textContent='أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ'}
+})();
+</script>
+
 </body>
 </html>

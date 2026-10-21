@@ -61,7 +61,7 @@ final class Prefs {
 
     /** {name, latitude, longitude}; Riyadh until the user picks */
     String[] city() {
-        return new String[] {sp.getString("cityName", "الرياض"), sp.getString("cityLat", "24.6877"), sp.getString("cityLon", "46.7219")};
+        return new String[] {sp.getString("cityName", "الخبراء"), sp.getString("cityLat", "26.0718"), sp.getString("cityLon", "43.6250")};
     }
     void setCity(String name, String lat, String lon) {
         sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
@@ -121,7 +121,7 @@ final class Prefs {
     String minRating() { return sp.getString("minRating", "7"); }
     void setMinRating(String v) { sp.edit().putString("minRating", v).apply(); }
 
-    boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
+    boolean autoUpdate() { return sp.getBoolean("autoUpdate", false); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
     SharedPreferences raw() { return sp; }
@@ -133,9 +133,7 @@ final class Prefs {
         long installed = 0;
         try { installed = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime; }
         catch (Exception ignored) { }
-        String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
-            ? Uri.fromFile(remote).toString()
-            : "file:///android_asset/tv.html";
+        String base = "file:///android_asset/tv.html"; // URTV_FAMILY_V1 always use custom local page
         return base + "#" + fragment();
     }
 

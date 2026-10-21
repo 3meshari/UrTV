@@ -1,0 +1,44 @@
+name: Build family ECMWF screensaver
+
+on:
+  push:
+    branches: [family-ecmwf]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Validate independent package and ECMWF patch
+        run: |
+          grep -q "applicationId 'sa.urtv.family'" android/app/build.gradle
+          grep -q URTV_ECMWF_FORECAST_FAMILY_V2 src/template.html
+          grep -q 'String base = "file:///android_asset/tv.html"' android/app/src/main/java/sa/urtv/screensaver/Prefs.java
+      - name: Assemble actual patched screen
+        run: |
+          python3 src/build.py
+          grep -q URTV_ECMWF_FORECAST_FAMILY_V2 dist/tv.html
+          grep -q 'embed.windy.com/embed2.html' dist/tv.html
+          test -s dist/tv.html
+      - name: Compile independent screensaver APK
+        run: |
+          gradle -p android :app:assembleRelease --no-daemon --stacktrace
+      - name: Publish APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: urtv-family-ecmwf-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

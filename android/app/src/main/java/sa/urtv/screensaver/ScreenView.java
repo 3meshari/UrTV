@@ -39,7 +39,7 @@ final class ScreenView {
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);   // photos are cached by PhotoCache, data must be fresh
         if (android.os.Build.VERSION.SDK_INT >= 23) s.setOffscreenPreRaster(true);   // draw before it is shown
         w.loadUrl(new Prefs(c).dashboardUrl(c));
-        UpdateJob.schedule(c);
+        // URTV_FAMILY_V1: offline curated screen; no upstream page auto-updates
         return w;
     }
 }
